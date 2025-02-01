@@ -1,8 +1,0 @@
-name: MinecraftOllamaPlugin
-main: top.tiku.MinecraftOllamaPlugin
-version: 1.0 - SNAPSHOT
-api - version: "1.21"
-commands:
-  ollama:
-    description: 使用Ollama模型进行问答
-    usage: /ollama <问题>
