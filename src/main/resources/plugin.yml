@@ -1,0 +1,18 @@
+# 插件的名称
+name: OllamaChatPlugin
+# 插件的主类，Minecraft 服务器将从该类开始加载插件
+main: top.tiku.OllamaChatPlugin
+# 插件的版本号
+version: 1.0
+# 插件的描述信息
+description: Allows chatting with Ollama's Llama2:7b in Minecraft
+# 指定插件兼容的 Spigot API 版本
+api-version: "1.21"
+# 定义插件支持的命令
+commands:
+  # 命令名称
+  ollama:
+    # 命令的描述信息，玩家使用 /help 命令时会显示
+    description: Chat with Ollama's Llama2:7b
+    # 命令的使用方法提示
+    usage: /ollama <message>

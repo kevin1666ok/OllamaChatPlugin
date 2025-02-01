@@ -1,0 +1,6 @@
+# 使用的 Ollama 模型名称
+model: llama2:7b
+# Ollama 服务的 API 地址
+ollama-url: http://localhost:11434/api/generate
+# 按行输出时每行之间的延迟时间（游戏刻）
+line-delay: 60

@@ -1,0 +1,71 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- 项目的模型版本，固定为 4.0.0 -->
+    <modelVersion>4.0.0</modelVersion>
+    <!-- 项目的组 ID，通常是公司或组织的反向域名 -->
+    <groupId>top.tiku</groupId>
+    <!-- 项目的 artifact ID，即项目的名称 -->
+    <artifactId>OllamaChatPlugin</artifactId>
+    <!-- 项目的版本号 -->
+    <version>1.0-SNAPSHOT</version>
+
+    <!-- 项目的属性配置 -->
+    <properties>
+        <!-- 指定 Java 源代码的版本 -->
+        <maven.compiler.source>21</maven.compiler.source>
+        <!-- 指定 Java 编译后的目标版本 -->
+        <maven.compiler.target>21</maven.compiler.target>
+    </properties>
+
+    <!-- 项目的依赖配置 -->
+    <dependencies>
+        <!-- Spigot API 依赖，用于开发 Minecraft 插件 -->
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <!-- 作用域为 provided，表示运行时由容器提供该依赖 -->
+            <scope>provided</scope>
+        </dependency>
+        <!-- Apache HttpClient 依赖，用于进行 HTTP 通信 -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
+        </dependency>
+        <!-- JSON 处理库依赖，用于处理 JSON 数据 -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20231013</version>
+        </dependency>
+    </dependencies>
+
+    <!-- 项目的构建配置 -->
+    <build>
+        <!-- 插件配置 -->
+        <plugins>
+            <!-- Maven Shade 插件，用于打包项目并将依赖项合并到一个 JAR 文件中 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <!-- 执行阶段，这里是在打包阶段执行 -->
+                        <phase>package</phase>
+                        <!-- 要执行的目标 -->
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <!-- 是否创建减少依赖的 POM 文件，这里设置为 false -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
