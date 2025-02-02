@@ -1,6 +1,20 @@
-# 使用的 Ollama 模型名称
-model: llama2:7b
-# Ollama 服务的 API 地址
-ollama-url: http://localhost:11434/api/generate
+# 配置 Ollama API 相关信息
+ollama:
+  # 指定要使用的 Ollama 模型
+  model: llama2:7b
+  # 指定 Ollama API 的请求地址
+  url: http://localhost:11434/api/generate
+
+# 配置新 API 相关信息
+new-api:
+  # 指定要使用的新 API 模型
+  model: default-model
+  # 指定新 API 的请求地址
+  url: https://example.com/api/generate
+  # 指定访问新 API 所需的密钥
+  key: your_api_key_here
+
 # 按行输出时每行之间的延迟时间（游戏刻）
 line-delay: 60
+# 可选择使用的 API 类型，可选值为 "ollama" 或 "new-api"
+api-type: ollama

@@ -8,108 +8,117 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * OllamaChatPlugin 是一个 Minecraft 插件，用于在游戏中与 Ollama 服务进行交互，实现聊天功能。
- * 该插件允许玩家使用 /ollama 命令向 Ollama 服务发送消息，并接收回复。
- */
+// 插件主类，继承自 JavaPlugin，负责插件的初始化、命令处理等核心功能
 public class OllamaChatPlugin extends JavaPlugin {
 
-    // 用于与 Ollama 服务进行通信的客户端实例
+    // Ollama API 客户端实例，用于与 Ollama 服务进行交互
     private OllamaClient ollamaClient;
-    // 用于存储和读取插件配置信息的对象
+    // 新 API 客户端实例，用于与其他自定义 API 服务进行交互
+    private NewAPIClient newAPIClient;
+    // 用于读取和管理配置文件的对象，可获取配置文件中的各项配置信息
     private FileConfiguration config;
 
-    /**
-     * 插件启用时调用的方法，负责初始化配置、创建配置文件夹和启动 Ollama 客户端。
-     */
     @Override
     public void onEnable() {
-        // 创建配置文件夹
+        // 调用创建配置文件夹的方法，确保配置文件夹存在
         createConfigFolder();
-        // 保存默认配置文件到插件的数据文件夹中
+        // 保存默认配置文件，如果配置文件不存在，会将默认配置保存到文件中
         saveDefaultConfig();
-        // 获取配置文件内容
+        // 获取配置文件内容，以便后续读取配置信息
         config = getConfig();
-        // 记录插件启用日志
+        // 记录插件启用的日志信息，方便调试和监控
         getLogger().info("Ollama Chat Plugin has been enabled!");
-        // 初始化 Ollama 客户端，传入插件实例、配置文件中的模型名称和 Ollama 服务的 URL
-        ollamaClient = new OllamaClient(this, config.getString("model"), config.getString("ollama-url"));
+
+        // 从配置文件中读取 Ollama API 相关配置
+        // "ollama.model" 是配置文件中指定 Ollama 模型的配置项，默认值为 "llama2:7b"
+        String ollamaModel = config.getString("ollama.model", "llama2:7b");
+        // "ollama.url" 是配置文件中指定 Ollama API 地址的配置项，默认值为 "http://localhost:11434/api/generate"
+        String ollamaUrl = config.getString("ollama.url", "http://localhost:11434/api/generate");
+        // 使用读取到的配置信息初始化 Ollama 客户端
+        ollamaClient = new OllamaClient(this, ollamaModel, ollamaUrl);
+
+        // 从配置文件中读取新 API 相关配置
+        // "new-api.model" 是配置文件中指定新 API 模型的配置项，默认值为 "default-model"
+        String newApiModel = config.getString("new-api.model", "default-model");
+        // "new-api.url" 是配置文件中指定新 API 地址的配置项，默认值为 "https://example.com/api/generate"
+        String newApiUrl = config.getString("new-api.url", "https://example.com/api/generate");
+        // "new-api.key" 是配置文件中指定新 API 密钥的配置项，默认值为 "your_api_key_here"
+        String newApiKey = config.getString("new-api.key", "your_api_key_here");
+        // 使用读取到的配置信息初始化新 API 客户端
+        newAPIClient = new NewAPIClient(this, newApiUrl, newApiKey, newApiModel);
     }
 
-    /**
-     * 插件禁用时调用的方法，用于记录插件禁用日志。
-     */
     @Override
     public void onDisable() {
+        // 记录插件禁用的日志信息，方便调试和监控
         getLogger().info("Ollama Chat Plugin has been disabled!");
     }
 
-    /**
-     * 处理玩家命令的方法，当玩家输入 /ollama 命令时，向 Ollama 服务发送消息并显示回复。
-     *
-     * @param sender 命令发送者
-     * @param command 命令对象
-     * @param label 命令标签
-     * @param args 命令参数
-     * @return 如果命令处理成功返回 true，否则返回 false
-     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        // 判断玩家输入的命令是否为 "/ollama"
         if (command.getName().equalsIgnoreCase("ollama")) {
+            // 检查玩家是否输入了消息，如果没有输入，提示正确的命令使用方法
             if (args.length == 0) {
-                // 如果玩家没有提供消息，提示使用方法
                 sender.sendMessage("Usage: /ollama <message>");
                 getLogger().info("Player used /ollama command without a message.");
                 return true;
             }
             // 将玩家输入的参数拼接成完整的消息
             String userMessage = String.join(" ", args);
+            // 记录玩家使用命令及输入消息的日志信息
             getLogger().info("Player used /ollama command with message: " + userMessage);
-            // 向玩家发送正在生成的提示消息
+            // 向玩家发送正在生成回复的提示信息
             sender.sendMessage("正在生成...");
-            // 异步执行向 Ollama 服务发送请求的操作
+
+            // 异步执行请求操作，避免阻塞主线程，使用 CompletableFuture 实现异步处理
             CompletableFuture.runAsync(() -> {
-                String ollamaResponse = ollamaClient.sendRequestToOllama(userMessage);
-                // 按行显示 Ollama 服务的回复
-                showTypingEffectByLine(sender, ollamaResponse);
+                // 从配置文件中获取要使用的 API 类型，默认为 Ollama
+                String apiType = config.getString("api-type", "ollama");
+                String response;
+                if ("ollama".equals(apiType)) {
+                    // 若使用 Ollama API，调用 Ollama 客户端发送请求
+                    response = ollamaClient.sendRequestToOllama(userMessage);
+                } else if ("new-api".equals(apiType)) {
+                    // 若使用新 API，调用新 API 客户端发送请求
+                    response = newAPIClient.sendRequestToNewAPI(userMessage);
+                } else {
+                    // 若配置的 API 类型不支持，返回错误提示信息
+                    response = "Unsupported API type.";
+                }
+                // 按行显示 API 的回复信息
+                showTypingEffectByLine(sender, response);
             });
             return true;
         }
         return false;
     }
 
-    /**
-     * 按行显示 Ollama 服务回复的方法，实现打字效果。
-     *
-     * @param sender 消息发送目标
-     * @param response 完整的响应消息
-     */
+    // 按行显示回复信息并实现打字效果的方法
     private void showTypingEffectByLine(CommandSender sender, String response) {
-        // 将响应消息按换行符分割成多行
+        // 将回复信息按换行符分割成多行
         String[] lines = response.split("\n");
         for (int i = 0; i < lines.length; i++) {
             final int lineIndex = i;
-            // 按配置文件中的延迟时间逐行发送消息
+            // 按配置文件中设置的延迟时间逐行发送消息，模拟打字效果
             getServer().getScheduler().runTaskLater(this, () -> {
                 sender.sendMessage(lines[lineIndex]);
             }, i * config.getLong("line-delay"));
         }
     }
 
-    /**
-     * 创建配置文件夹的方法，如果文件夹不存在则创建。
-     */
+    // 创建配置文件夹的方法
     private void createConfigFolder() {
         // 获取插件的数据文件夹
         File dataFolder = getDataFolder();
         // 定义配置文件夹的路径
         File configFolder = new File(dataFolder, "config");
-        // 检查配置文件夹是否存在
         if (!configFolder.exists()) {
-            // 尝试创建配置文件夹及其父文件夹
             if (configFolder.mkdirs()) {
+                // 若配置文件夹创建成功，记录日志信息
                 getLogger().info("Config folder created successfully.");
             } else {
+                // 若配置文件夹创建失败，记录错误日志信息
                 getLogger().severe("Failed to create config folder.");
             }
         }
