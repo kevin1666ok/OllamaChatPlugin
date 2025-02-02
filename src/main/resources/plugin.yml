@@ -1,18 +1,36 @@
-# 插件的名称
+# 插件的名称，在 Minecraft 服务器中用于标识该插件
 name: OllamaChatPlugin
-# 插件的主类，Minecraft 服务器将从该类开始加载插件
+# 插件的版本号，通常遵循语义化版本规则，当前为 1.0.2 beta1
+version: 1.0.2 beta1
+# 插件的主类全限定名，服务器会根据这个类来加载和运行插件
 main: top.tiku.OllamaChatPlugin
-# 插件的版本号
-version: 1.0
-# 插件的描述信息
-description: Allows chatting with Ollama's Llama2:7b in Minecraft
-# 指定插件兼容的 Spigot API 版本
-api-version: "1.21"
-# 定义插件支持的命令
+# 插件的作者信息，可以是个人或团队名称
+author: az_bai_cai
+# 插件的描述信息，简要说明插件的功能
+description: A plugin that integrates Ollama and a new API for chat interactions in Minecraft.
+# 插件的依赖项列表，如果该插件依赖其他插件才能正常工作，需要在这里列出
+depend: []
+# 插件的软依赖项列表，即该插件可以在没有这些依赖的情况下运行，但有这些依赖时会有额外功能
+softdepend: []
+# 插件的加载时机，"STARTUP" 表示在服务器启动时加载，"POSTWORLD" 表示在世界加载完成后加载
+load: STARTUP
+# 插件支持的 Minecraft 服务器版本范围
+api-version: "1.17"
+# 插件定义的命令列表
 commands:
-  # 命令名称
+  # 定义 /ollama 命令
   ollama:
-    # 命令的描述信息，玩家使用 /help 命令时会显示
-    description: Chat with Ollama's Llama2:7b
-    # 命令的使用方法提示
-    usage: /ollama <message>
+    # 命令的描述信息，玩家使用 /help 命令时会显示该描述
+    description: Interact with Ollama or the new API.
+    # 命令的使用方法提示，当玩家使用命令格式错误时会显示该提示
+    usage: /<command> <message>
+    # 命令的别名列表，玩家可以使用这些别名来执行该命令
+    aliases: [oc]
+# 插件定义的权限节点列表
+permissions:
+  # 定义 ollama.use 权限节点
+  ollama.use:
+    # 权限节点的描述信息
+    description: Allows the player to use the /ollama command.
+    # 权限节点的默认设置，"true" 表示所有玩家默认拥有该权限，"op" 表示只有服务器管理员拥有该权限
+    default: true

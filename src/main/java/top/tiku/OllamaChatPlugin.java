@@ -2,125 +2,128 @@ package top.tiku;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
-// 插件主类，继承自 JavaPlugin，负责插件的初始化、命令处理等核心功能
+/**
+ * 主插件类，继承自 JavaPlugin，负责插件的整体生命周期管理和命令处理。
+ */
 public class OllamaChatPlugin extends JavaPlugin {
 
-    // Ollama API 客户端实例，用于与 Ollama 服务进行交互
-    private OllamaClient ollamaClient;
-    // 新 API 客户端实例，用于与其他自定义 API 服务进行交互
-    private NewAPIClient newAPIClient;
-    // 用于读取和管理配置文件的对象，可获取配置文件中的各项配置信息
-    private FileConfiguration config;
+    // 配置管理器，用于读取和管理配置文件
+    private ConfigManager configManager;
+    // Ollama 服务，处理与 Ollama 相关的操作
+    private OllamaService ollamaService;
+    // 新 API 服务，处理与新 API 相关的操作
+    private NewAPIService newAPIService;
 
+    /**
+     * 插件启用时调用的方法，进行初始化操作。
+     */
     @Override
     public void onEnable() {
-        // 调用创建配置文件夹的方法，确保配置文件夹存在
-        createConfigFolder();
-        // 保存默认配置文件，如果配置文件不存在，会将默认配置保存到文件中
-        saveDefaultConfig();
-        // 获取配置文件内容，以便后续读取配置信息
-        config = getConfig();
-        // 记录插件启用的日志信息，方便调试和监控
+        // 创建配置管理器实例，传入当前插件实例
+        configManager = new ConfigManager(this);
+        // 保存默认配置文件，如果配置文件不存在则创建
+        configManager.saveDefaultConfig();
+
+        // 创建 Ollama 服务实例，传入当前插件实例和配置管理器
+        ollamaService = new OllamaService(this, configManager);
+        // 创建新 API 服务实例，传入当前插件实例和配置管理器
+        newAPIService = new NewAPIService(this, configManager);
+
+        // 记录插件启用的日志信息
         getLogger().info("Ollama Chat Plugin has been enabled!");
-
-        // 从配置文件中读取 Ollama API 相关配置
-        // "ollama.model" 是配置文件中指定 Ollama 模型的配置项，默认值为 "llama2:7b"
-        String ollamaModel = config.getString("ollama.model", "llama2:7b");
-        // "ollama.url" 是配置文件中指定 Ollama API 地址的配置项，默认值为 "http://localhost:11434/api/generate"
-        String ollamaUrl = config.getString("ollama.url", "http://localhost:11434/api/generate");
-        // 使用读取到的配置信息初始化 Ollama 客户端
-        ollamaClient = new OllamaClient(this, ollamaModel, ollamaUrl);
-
-        // 从配置文件中读取新 API 相关配置
-        // "new-api.model" 是配置文件中指定新 API 模型的配置项，默认值为 "default-model"
-        String newApiModel = config.getString("new-api.model", "default-model");
-        // "new-api.url" 是配置文件中指定新 API 地址的配置项，默认值为 "https://example.com/api/generate"
-        String newApiUrl = config.getString("new-api.url", "https://example.com/api/generate");
-        // "new-api.key" 是配置文件中指定新 API 密钥的配置项，默认值为 "your_api_key_here"
-        String newApiKey = config.getString("new-api.key", "your_api_key_here");
-        // 使用读取到的配置信息初始化新 API 客户端
-        newAPIClient = new NewAPIClient(this, newApiUrl, newApiKey, newApiModel);
     }
 
+    /**
+     * 插件禁用时调用的方法，进行资源释放和服务停止操作。
+     */
     @Override
     public void onDisable() {
-        // 记录插件禁用的日志信息，方便调试和监控
+        // 停止 Ollama 服务
+        ollamaService.stopOllama();
+        // 记录插件禁用的日志信息
         getLogger().info("Ollama Chat Plugin has been disabled!");
     }
 
+    /**
+     * 处理插件命令的方法。
+     *
+     * @param sender  命令发送者
+     * @param command 命令对象
+     * @param label   命令标签
+     * @param args    命令参数
+     * @return 如果命令处理成功返回 true，否则返回 false
+     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // 判断玩家输入的命令是否为 "/ollama"
+        // 检查命令是否为 /ollama
         if (command.getName().equalsIgnoreCase("ollama")) {
-            // 检查玩家是否输入了消息，如果没有输入，提示正确的命令使用方法
+            // 如果没有提供参数，提示用户正确的使用方法
             if (args.length == 0) {
                 sender.sendMessage("Usage: /ollama <message>");
                 getLogger().info("Player used /ollama command without a message.");
                 return true;
             }
-            // 将玩家输入的参数拼接成完整的消息
+            // 如果参数为 setmodel，调用 Ollama 服务的切换模型方法
+            if (args[0].equalsIgnoreCase("setmodel")) {
+                // 检查是否提供了新的模型名称
+                if (args.length < 2) {
+                    sender.sendMessage("Usage: /ollama setmodel <model_name>");
+                    return true;
+                }
+                String newModel = args[1];
+                // 尝试切换模型
+                if (ollamaService.changeModel(newModel)) {
+                    sender.sendMessage("Successfully changed the model to " + newModel);
+                } else {
+                    sender.sendMessage("Invalid model. Available models: " + configManager.getAvailableModels());
+                }
+                return true;
+            }
+            // 如果参数为 setmode，调用 Ollama 服务的切换模式方法
+            if (args[0].equalsIgnoreCase("setmode")) {
+                // 检查是否提供了新的服务模式
+                if (args.length < 2) {
+                    sender.sendMessage("Usage: /ollama setmode <built-in|standalone>");
+                    return true;
+                }
+                String newMode = args[1];
+                // 尝试切换服务模式
+                if (ollamaService.changeMode(newMode)) {
+                    sender.sendMessage("Successfully changed the mode to " + newMode);
+                } else {
+                    sender.sendMessage("Invalid mode. Available modes: built-in, standalone");
+                }
+                return true;
+            }
+            // 将用户输入的参数拼接成完整的消息
             String userMessage = String.join(" ", args);
-            // 记录玩家使用命令及输入消息的日志信息
+            // 记录用户使用 /ollama 命令发送的消息日志
             getLogger().info("Player used /ollama command with message: " + userMessage);
-            // 向玩家发送正在生成回复的提示信息
+            // 告知用户正在生成回复
             sender.sendMessage("正在生成...");
 
-            // 异步执行请求操作，避免阻塞主线程，使用 CompletableFuture 实现异步处理
+            // 异步执行请求操作
             CompletableFuture.runAsync(() -> {
-                // 从配置文件中获取要使用的 API 类型，默认为 Ollama
-                String apiType = config.getString("api-type", "ollama");
+                // 获取当前使用的 API 类型
+                String apiType = configManager.getApiType();
                 String response;
+                // 根据 API 类型选择调用相应的服务发送请求
                 if ("ollama".equals(apiType)) {
-                    // 若使用 Ollama API，调用 Ollama 客户端发送请求
-                    response = ollamaClient.sendRequestToOllama(userMessage);
+                    response = ollamaService.sendRequest(userMessage);
                 } else if ("new-api".equals(apiType)) {
-                    // 若使用新 API，调用新 API 客户端发送请求
-                    response = newAPIClient.sendRequestToNewAPI(userMessage);
+                    response = newAPIService.sendRequest(userMessage);
                 } else {
-                    // 若配置的 API 类型不支持，返回错误提示信息
                     response = "Unsupported API type.";
                 }
-                // 按行显示 API 的回复信息
-                showTypingEffectByLine(sender, response);
+                // 调用 Ollama 服务的显示打字效果方法显示回复
+                ollamaService.showTypingEffectByLine(sender, response);
             });
             return true;
         }
         return false;
-    }
-
-    // 按行显示回复信息并实现打字效果的方法
-    private void showTypingEffectByLine(CommandSender sender, String response) {
-        // 将回复信息按换行符分割成多行
-        String[] lines = response.split("\n");
-        for (int i = 0; i < lines.length; i++) {
-            final int lineIndex = i;
-            // 按配置文件中设置的延迟时间逐行发送消息，模拟打字效果
-            getServer().getScheduler().runTaskLater(this, () -> {
-                sender.sendMessage(lines[lineIndex]);
-            }, i * config.getLong("line-delay"));
-        }
-    }
-
-    // 创建配置文件夹的方法
-    private void createConfigFolder() {
-        // 获取插件的数据文件夹
-        File dataFolder = getDataFolder();
-        // 定义配置文件夹的路径
-        File configFolder = new File(dataFolder, "config");
-        if (!configFolder.exists()) {
-            if (configFolder.mkdirs()) {
-                // 若配置文件夹创建成功，记录日志信息
-                getLogger().info("Config folder created successfully.");
-            } else {
-                // 若配置文件夹创建失败，记录错误日志信息
-                getLogger().severe("Failed to create config folder.");
-            }
-        }
     }
 }

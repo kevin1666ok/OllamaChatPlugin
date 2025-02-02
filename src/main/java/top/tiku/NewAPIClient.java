@@ -1,30 +1,38 @@
 package top.tiku;
 
 import org.bukkit.plugin.java.JavaPlugin;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
-// 该类用于与新的 API 进行交互
+/**
+ * NewAPIClient 类用于与新的 API 进行 HTTP 通信，
+ * 发送请求并接收响应，处理与新 API 的交互逻辑。
+ */
 public class NewAPIClient {
 
-    // 引用插件主类，用于记录日志等操作
+    // 插件实例，用于记录日志等操作
     private JavaPlugin plugin;
+    // 新 API 的访问密钥
+    private String apiKey;
+    // 当前使用的新 API 模型
+    private String model;
     // 新 API 的请求地址
     private String apiUrl;
-    // 访问新 API 所需的密钥
-    private String apiKey;
-    // 指定要使用的新 API 模型
-    private String model;
 
-    // 构造函数，初始化插件实例、新 API 地址、API 密钥和模型名称
+    /**
+     * 构造函数，初始化 NewAPIClient 实例。
+     *
+     * @param plugin 插件实例，用于记录日志
+     * @param apiUrl 新 API 的请求地址
+     * @param apiKey 新 API 的访问密钥
+     * @param model  当前使用的新 API 模型
+     */
     public NewAPIClient(JavaPlugin plugin, String apiUrl, String apiKey, String model) {
         this.plugin = plugin;
         this.apiUrl = apiUrl;
@@ -32,43 +40,63 @@ public class NewAPIClient {
         this.model = model;
     }
 
-    // 向新 API 发送请求并获取响应的方法
-    public String sendRequestToNewAPI(String message) {
-        // 记录发送请求的日志信息
-        plugin.getLogger().info("Sending request to New API with message: " + message);
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            // 创建一个 HTTP POST 请求对象，使用新 API 的地址
-            HttpPost request = new HttpPost(apiUrl);
-            // 创建一个 JSON 对象用于存储请求体参数
-            JSONObject requestBody = new JSONObject();
-            // 将用户输入的消息作为提示信息添加到请求体中
-            requestBody.put("prompt", message);
-            // 将 API 密钥添加到请求体中
-            requestBody.put("api_key", apiKey);
-            // 将使用的新 API 模型添加到请求体中
-            requestBody.put("model", model);
-            // 创建一个 StringEntity 对象，将请求体以 UTF - 8 编码设置到请求中
-            request.setEntity(new StringEntity(requestBody.toString(), "UTF-8"));
-            // 设置请求头，指定请求体的内容类型为 JSON 且编码为 UTF - 8
-            request.setHeader("Content-Type", "application/json; charset=UTF-8");
+    /**
+     * 向新 API 发送请求并获取响应的方法。
+     *
+     * @param userMessage 用户输入的消息
+     * @return 新 API 返回的响应内容，如果出现异常则返回错误信息
+     */
+    public String sendRequestToNewAPI(String userMessage) {
+        try {
+            // 创建 URL 对象，指定新 API 的请求地址
+            URL obj = new URL(apiUrl);
+            // 打开 HTTP 连接
+            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+            // 设置请求方法为 POST
+            con.setRequestMethod("POST");
+            // 设置请求头，指定请求内容的类型为 JSON
+            con.setRequestProperty("Content-Type", "application/json");
+            // 设置请求头，添加 API 访问密钥
+            con.setRequestProperty("Authorization", "Bearer " + apiKey);
+            // 允许向连接中写入数据
+            con.setDoOutput(true);
 
-            // 执行 HTTP 请求并获取响应
-            HttpResponse response = httpClient.execute(request);
-            // 将响应实体转换为字符串
-            String responseBody = EntityUtils.toString(response.getEntity(), "UTF-8");
-            // 记录原始响应的日志信息
-            plugin.getLogger().info("Raw response from New API: " + responseBody);
-            // 将响应体解析为 JSON 对象
-            JSONObject jsonResponse = new JSONObject(responseBody);
-            // 从 JSON 响应中提取所需的回复信息
-            String responseStr = jsonResponse.getString("response");
-            // 记录解析后的响应日志信息
-            plugin.getLogger().info("Parsed response from New API: " + responseStr);
-            return responseStr;
+            // 创建 JSON 对象，包含请求所需的模型和用户消息
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("model", model);
+            requestBody.put("prompt", userMessage);
+
+            // 获取输出流，将请求体以 UTF-8 编码写入连接
+            try (OutputStream os = con.getOutputStream()) {
+                byte[] input = requestBody.toString().getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            // 获取输入流，读取新 API 返回的响应
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(con.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                // 逐行读取响应内容并添加到 StringBuilder 中
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                // 返回完整的响应内容
+                return response.toString();
+            }
         } catch (IOException e) {
-            // 若发生网络异常，记录错误日志并返回错误提示信息
-            plugin.getLogger().severe("Error communicating with New API: " + e.getMessage());
-            return "An error occurred while communicating with New API.";
+            // 若出现 IO 异常，记录错误日志并返回错误信息
+            plugin.getLogger().severe("Error sending request to New API: " + e.getMessage());
+            return "Error: " + e.getMessage();
         }
+    }
+
+    /**
+     * 设置当前使用的新 API 模型。
+     *
+     * @param newModel 要设置的新模型名称
+     */
+    public void setModel(String newModel) {
+        this.model = newModel;
     }
 }
